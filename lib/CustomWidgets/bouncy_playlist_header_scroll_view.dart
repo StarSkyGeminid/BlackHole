@@ -161,7 +161,7 @@ class BouncyPlaylistHeaderScrollView extends StatelessWidget {
                                       fontSize: 12,
                                       color: Theme.of(context)
                                           .textTheme
-                                          .caption!
+                                          .bodySmall!
                                           .color,
                                     ),
                                   ),
@@ -181,7 +181,7 @@ class BouncyPlaylistHeaderScrollView extends StatelessWidget {
                                       fontSize: 12,
                                       color: Theme.of(context)
                                           .textTheme
-                                          .caption!
+                                          .bodySmall!
                                           .color,
                                     ),
                                   ),
@@ -321,6 +321,7 @@ class BouncyPlaylistHeaderScrollView extends StatelessWidget {
               centerTitle: true,
               // floating: true,
               backgroundColor: isTransparent.value ? Colors.transparent : null,
+              iconTheme: Theme.of(context).iconTheme,
               expandedHeight: expandedHeight,
               actions: actions,
               flexibleSpace: child,

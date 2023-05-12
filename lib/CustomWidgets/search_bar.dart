@@ -193,6 +193,9 @@ class _SearchBarState extends State<SearchBar> {
                         if (!hide.value) hide.value = true;
                         List searchQueries = Hive.box('settings')
                             .get('search', defaultValue: []) as List;
+                        if (searchQueries.contains(query)) {
+                          searchQueries.remove(query);
+                        }
                         searchQueries.insert(0, query);
                         if (searchQueries.length > 10) {
                           searchQueries = searchQueries.sublist(0, 10);
@@ -216,6 +219,9 @@ class _SearchBarState extends State<SearchBar> {
                       ),
                       TextSpan(
                         text: AppLocalizations.of(context)!.searchYt,
+                        style: TextStyle(
+                          color: Theme.of(context).textTheme.bodyLarge!.color,
+                        ),
                         recognizer: TapGestureRecognizer()
                           ..onTap = () {
                             Navigator.push(
@@ -295,6 +301,13 @@ class _SearchBarState extends State<SearchBar> {
                                           'search',
                                           defaultValue: [],
                                         ) as List;
+                                        if (searchQueries.contains(
+                                          suggestedList[index].toString(),
+                                        )) {
+                                          searchQueries.remove(
+                                            suggestedList[index].toString(),
+                                          );
+                                        }
                                         searchQueries.insert(
                                           0,
                                           suggestedList[index].toString(),

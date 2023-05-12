@@ -27,8 +27,8 @@ import 'package:blackhole/CustomWidgets/textinput_dialog.dart';
 import 'package:blackhole/Helpers/backup_restore.dart';
 import 'package:blackhole/Helpers/config.dart';
 import 'package:blackhole/Helpers/countrycodes.dart';
+import 'package:blackhole/Helpers/github.dart';
 import 'package:blackhole/Helpers/picker.dart';
-import 'package:blackhole/Helpers/supabase.dart';
 import 'package:blackhole/Screens/Home/saavn.dart' as home_screen;
 import 'package:blackhole/Screens/Settings/player_gradient.dart';
 import 'package:blackhole/Screens/Top Charts/top.dart' as top_screen;
@@ -53,7 +53,8 @@ class SettingPage extends StatefulWidget {
   _SettingPageState createState() => _SettingPageState();
 }
 
-class _SettingPageState extends State<SettingPage> {
+class _SettingPageState extends State<SettingPage>
+    with AutomaticKeepAliveClientMixin<SettingPage> {
   String? appVersion;
   final Box settingsBox = Hive.box('settings');
   final MyTheme currentTheme = GetIt.I<MyTheme>();
@@ -125,12 +126,25 @@ class _SettingPageState extends State<SettingPage> {
     'preferredMiniButtons',
     defaultValue: ['Like', 'Play/Pause', 'Next'],
   )?.toList() as List;
+  List<int> preferredCompactNotificationButtons = Hive.box('settings').get(
+    'preferredCompactNotificationButtons',
+    defaultValue: [1, 2, 3],
+  ) as List<int>;
+  final ValueNotifier<List> sectionsToShow = ValueNotifier<List>(
+    Hive.box('settings').get(
+      'sectionsToShow',
+      defaultValue: ['Home', 'Top Charts', 'YouTube', 'Library'],
+    ) as List,
+  );
 
   @override
   void initState() {
     main();
     super.initState();
   }
+
+  @override
+  bool get wantKeepAlive => sectionsToShow.value.contains('Settings');
 
   Future<void> main() async {
     final PackageInfo packageInfo = await PackageInfo.fromPlatform();
@@ -161,6 +175,7 @@ class _SettingPageState extends State<SettingPage> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     final List<String> userThemesList = <String>[
       'Default',
       ...userThemes.keys.map((theme) => theme as String),
@@ -828,7 +843,7 @@ class _SettingPageState extends State<SettingPage> {
                                     fontSize: 12,
                                     color: Theme.of(context)
                                         .textTheme
-                                        .bodyText1!
+                                        .bodyLarge!
                                         .color,
                                   ),
                                   underline: const SizedBox(),
@@ -875,7 +890,7 @@ class _SettingPageState extends State<SettingPage> {
                                     fontSize: 12,
                                     color: Theme.of(context)
                                         .textTheme
-                                        .bodyText1!
+                                        .bodyLarge!
                                         .color,
                                   ),
                                   underline: const SizedBox(),
@@ -957,7 +972,7 @@ class _SettingPageState extends State<SettingPage> {
                             style: TextStyle(
                               fontSize: 12,
                               color:
-                                  Theme.of(context).textTheme.bodyText1!.color,
+                                  Theme.of(context).textTheme.bodyLarge!.color,
                             ),
                             underline: const SizedBox(),
                             onChanged: (String? themeChoice) {
@@ -1522,6 +1537,201 @@ class _SettingPageState extends State<SettingPage> {
                             );
                           },
                         ),
+                        ListTile(
+                          title: Text(
+                            AppLocalizations.of(
+                              context,
+                            )!
+                                .compactNotificationButtons,
+                          ),
+                          subtitle: Text(
+                            AppLocalizations.of(
+                              context,
+                            )!
+                                .compactNotificationButtonsSub,
+                          ),
+                          dense: true,
+                          onTap: () {
+                            showDialog(
+                              context: context,
+                              builder: (BuildContext context) {
+                                final Set<int> checked = {
+                                  ...preferredCompactNotificationButtons
+                                };
+                                final List<Map> buttons = [
+                                  {
+                                    'name': 'Like',
+                                    'index': 0,
+                                  },
+                                  {
+                                    'name': 'Previous',
+                                    'index': 1,
+                                  },
+                                  {
+                                    'name': 'Play/Pause',
+                                    'index': 2,
+                                  },
+                                  {
+                                    'name': 'Next',
+                                    'index': 3,
+                                  },
+                                  {
+                                    'name': 'Stop',
+                                    'index': 4,
+                                  },
+                                ];
+                                return StatefulBuilder(
+                                  builder: (
+                                    BuildContext context,
+                                    StateSetter setStt,
+                                  ) {
+                                    return AlertDialog(
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(
+                                          15.0,
+                                        ),
+                                      ),
+                                      content: SizedBox(
+                                        width: 500,
+                                        child: ListView(
+                                          physics:
+                                              const BouncingScrollPhysics(),
+                                          shrinkWrap: true,
+                                          padding: const EdgeInsets.fromLTRB(
+                                            0,
+                                            10,
+                                            0,
+                                            10,
+                                          ),
+                                          children: [
+                                            Center(
+                                              child: Text(
+                                                AppLocalizations.of(
+                                                  context,
+                                                )!
+                                                    .compactNotificationButtonsHeader,
+                                              ),
+                                            ),
+                                            ...buttons.map((value) {
+                                              return CheckboxListTile(
+                                                dense: true,
+                                                contentPadding:
+                                                    const EdgeInsets.only(
+                                                  left: 16.0,
+                                                ),
+                                                activeColor: Theme.of(context)
+                                                    .colorScheme
+                                                    .secondary,
+                                                checkColor: Theme.of(
+                                                          context,
+                                                        )
+                                                            .colorScheme
+                                                            .secondary ==
+                                                        Colors.white
+                                                    ? Colors.black
+                                                    : null,
+                                                value: checked.contains(
+                                                  value['index'] as int,
+                                                ),
+                                                title: Text(
+                                                  value['name'] as String,
+                                                ),
+                                                onChanged: (bool? isChecked) {
+                                                  setStt(
+                                                    () {
+                                                      if (isChecked!) {
+                                                        while (checked.length >=
+                                                            3) {
+                                                          checked.remove(
+                                                            checked.first,
+                                                          );
+                                                        }
+
+                                                        checked.add(
+                                                          value['index'] as int,
+                                                        );
+                                                      } else {
+                                                        checked.removeWhere(
+                                                          (int element) =>
+                                                              element ==
+                                                              value['index'],
+                                                        );
+                                                      }
+                                                    },
+                                                  );
+                                                },
+                                              );
+                                            })
+                                          ],
+                                        ),
+                                      ),
+                                      actions: [
+                                        TextButton(
+                                          style: TextButton.styleFrom(
+                                            foregroundColor:
+                                                Theme.of(context).brightness ==
+                                                        Brightness.dark
+                                                    ? Colors.white
+                                                    : Colors.grey[700],
+                                          ),
+                                          onPressed: () {
+                                            Navigator.pop(context);
+                                          },
+                                          child: Text(
+                                            AppLocalizations.of(
+                                              context,
+                                            )!
+                                                .cancel,
+                                          ),
+                                        ),
+                                        TextButton(
+                                          style: TextButton.styleFrom(
+                                            foregroundColor: Theme.of(context)
+                                                        .colorScheme
+                                                        .secondary ==
+                                                    Colors.white
+                                                ? Colors.black
+                                                : null,
+                                            backgroundColor: Theme.of(context)
+                                                .colorScheme
+                                                .secondary,
+                                          ),
+                                          onPressed: () {
+                                            setState(
+                                              () {
+                                                while (checked.length > 3) {
+                                                  checked.remove(
+                                                    checked.first,
+                                                  );
+                                                }
+                                                preferredCompactNotificationButtons =
+                                                    checked.toList()..sort();
+                                                Navigator.pop(context);
+                                                Hive.box('settings').put(
+                                                  'preferredCompactNotificationButtons',
+                                                  preferredCompactNotificationButtons,
+                                                );
+                                              },
+                                            );
+                                          },
+                                          child: Text(
+                                            AppLocalizations.of(
+                                              context,
+                                            )!
+                                                .ok,
+                                          ),
+                                        ),
+                                        const SizedBox(
+                                          width: 5,
+                                        ),
+                                      ],
+                                    );
+                                  },
+                                );
+                              },
+                            );
+                          },
+                        ),
 
                         ListTile(
                           title: Text(
@@ -1694,6 +1904,55 @@ class _SettingPageState extends State<SettingPage> {
                         //   keyName: 'showHistory',
                         //   defaultValue: true,
                         // ),
+                        ValueListenableBuilder(
+                          valueListenable: sectionsToShow,
+                          builder: (
+                            BuildContext context,
+                            List items,
+                            Widget? child,
+                          ) {
+                            return SwitchListTile(
+                              activeColor:
+                                  Theme.of(context).colorScheme.secondary,
+                              title: Text(
+                                AppLocalizations.of(
+                                  context,
+                                )!
+                                    .showTopCharts,
+                              ),
+                              subtitle: Text(
+                                AppLocalizations.of(
+                                  context,
+                                )!
+                                    .showTopChartsSub,
+                              ),
+                              dense: true,
+                              value: items.contains('Top Charts'),
+                              onChanged: (val) {
+                                if (val) {
+                                  sectionsToShow.value = [
+                                    'Home',
+                                    'Top Charts',
+                                    'YouTube',
+                                    'Library'
+                                  ];
+                                } else {
+                                  sectionsToShow.value = [
+                                    'Home',
+                                    'YouTube',
+                                    'Library',
+                                    'Settings'
+                                  ];
+                                }
+                                settingsBox.put(
+                                  'sectionsToShow',
+                                  sectionsToShow.value,
+                                );
+                                widget.callback!();
+                              },
+                            );
+                          },
+                        ),
                         BoxSwitchTile(
                           title: Text(
                             AppLocalizations.of(
@@ -1960,7 +2219,7 @@ class _SettingPageState extends State<SettingPage> {
                             style: TextStyle(
                               fontSize: 12,
                               color:
-                                  Theme.of(context).textTheme.bodyText1!.color,
+                                  Theme.of(context).textTheme.bodyLarge!.color,
                             ),
                             underline: const SizedBox(),
                             onChanged: (String? newValue) {
@@ -2003,7 +2262,7 @@ class _SettingPageState extends State<SettingPage> {
                             style: TextStyle(
                               fontSize: 12,
                               color:
-                                  Theme.of(context).textTheme.bodyText1!.color,
+                                  Theme.of(context).textTheme.bodyLarge!.color,
                             ),
                             underline: const SizedBox(),
                             onChanged: (String? newValue) {
@@ -2092,22 +2351,22 @@ class _SettingPageState extends State<SettingPage> {
                           defaultValue: true,
                           isThreeLine: true,
                         ),
-                        // BoxSwitchTile(
-                        //   title: Text(
-                        //     AppLocalizations.of(
-                        //       context,
-                        //     )!
-                        //         .cacheSong,
-                        //   ),
-                        //   subtitle: Text(
-                        //     AppLocalizations.of(
-                        //       context,
-                        //     )!
-                        //         .cacheSongSub,
-                        //   ),
-                        //   keyName: 'cacheSong',
-                        //   defaultValue: false,
-                        // ),
+                        BoxSwitchTile(
+                          title: Text(
+                            AppLocalizations.of(
+                              context,
+                            )!
+                                .cacheSong,
+                          ),
+                          subtitle: Text(
+                            AppLocalizations.of(
+                              context,
+                            )!
+                                .cacheSongSub,
+                          ),
+                          keyName: 'cacheSong',
+                          defaultValue: true,
+                        ),
                       ],
                     ),
                   ),
@@ -2161,7 +2420,7 @@ class _SettingPageState extends State<SettingPage> {
                             style: TextStyle(
                               fontSize: 12,
                               color:
-                                  Theme.of(context).textTheme.bodyText1!.color,
+                                  Theme.of(context).textTheme.bodyLarge!.color,
                             ),
                             underline: const SizedBox(),
                             onChanged: (String? newValue) {
@@ -2206,7 +2465,7 @@ class _SettingPageState extends State<SettingPage> {
                             style: TextStyle(
                               fontSize: 12,
                               color:
-                                  Theme.of(context).textTheme.bodyText1!.color,
+                                  Theme.of(context).textTheme.bodyLarge!.color,
                             ),
                             underline: const SizedBox(),
                             onChanged: (String? newValue) {
@@ -2489,7 +2748,7 @@ class _SettingPageState extends State<SettingPage> {
                             style: TextStyle(
                               fontSize: 12,
                               color:
-                                  Theme.of(context).textTheme.bodyText1!.color,
+                                  Theme.of(context).textTheme.bodyLarge!.color,
                             ),
                             underline: const SizedBox(),
                             onChanged: (String? newValue) {
@@ -2593,7 +2852,7 @@ class _SettingPageState extends State<SettingPage> {
                                                                 .secondary
                                                             : Theme.of(context)
                                                                 .textTheme
-                                                                .bodyText1!
+                                                                .bodyLarge!
                                                                 .color,
                                                         fontWeight: !value
                                                             ? FontWeight.w600
@@ -2632,7 +2891,7 @@ class _SettingPageState extends State<SettingPage> {
                                                                 .secondary
                                                             : Theme.of(context)
                                                                 .textTheme
-                                                                .bodyText1!
+                                                                .bodyLarge!
                                                                 .color,
                                                         fontWeight: value
                                                             ? FontWeight.w600
@@ -3539,10 +3798,10 @@ class _SettingPageState extends State<SettingPage> {
                               noAction: true,
                             );
 
-                            SupaBase().getUpdate().then(
-                              (Map value) async {
+                            GitHub.getLatestVersion().then(
+                              (String latestVersion) async {
                                 if (compareVersion(
-                                  value['LatestVersion'].toString(),
+                                  latestVersion,
                                   appVersion!,
                                 )) {
                                   List? abis = await Hive.box('settings')
@@ -3570,33 +3829,12 @@ class _SettingPageState extends State<SettingPage> {
                                           AppLocalizations.of(context)!.update,
                                       onPressed: () {
                                         Navigator.pop(context);
-                                        if (abis!.contains('arm64-v8a')) {
-                                          launchUrl(
-                                            Uri.parse(
-                                              value['arm64-v8a'] as String,
-                                            ),
-                                            mode:
-                                                LaunchMode.externalApplication,
-                                          );
-                                        } else {
-                                          if (abis.contains('armeabi-v7a')) {
-                                            launchUrl(
-                                              Uri.parse(
-                                                value['armeabi-v7a'] as String,
-                                              ),
-                                              mode: LaunchMode
-                                                  .externalApplication,
-                                            );
-                                          } else {
-                                            launchUrl(
-                                              Uri.parse(
-                                                value['universal'] as String,
-                                              ),
-                                              mode: LaunchMode
-                                                  .externalApplication,
-                                            );
-                                          }
-                                        }
+                                        launchUrl(
+                                          Uri.parse(
+                                            'https://sangwan5688.github.io/download/',
+                                          ),
+                                          mode: LaunchMode.externalApplication,
+                                        );
                                       },
                                     ),
                                   );
@@ -3635,7 +3873,7 @@ class _SettingPageState extends State<SettingPage> {
                             Share.share(
                               '${AppLocalizations.of(
                                 context,
-                              )!.shareAppText}: https://github.com/Sangwan5688/BlackHole',
+                              )!.shareAppText}: https://sangwan5688.github.io/',
                             );
                           },
                           dense: true,

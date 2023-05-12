@@ -194,7 +194,7 @@ class _PlayScreenState extends State<PlayScreen> {
   }
 
   String format(String msg) {
-    return '${msg[0].toUpperCase()}${msg.substring(1)}: '.replaceAll('_', ' ');
+    return '${msg[0].toUpperCase()}${msg.substring(1)}'.replaceAll('_', ' ');
   }
 
   @override
@@ -313,32 +313,37 @@ class _PlayScreenState extends State<PlayScreen> {
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: details.keys.map((e) {
-                                    return SelectableText.rich(
-                                      TextSpan(
-                                        children: <TextSpan>[
-                                          TextSpan(
-                                            text: format(
-                                              e.toString(),
+                                    return Padding(
+                                      padding:
+                                          const EdgeInsets.only(bottom: 10),
+                                      child: SelectableText.rich(
+                                        TextSpan(
+                                          children: <TextSpan>[
+                                            TextSpan(
+                                              text: format(
+                                                '$e\n',
+                                              ),
+                                              style: TextStyle(
+                                                fontWeight: FontWeight.normal,
+                                                fontSize: 12,
+                                                color: Theme.of(context)
+                                                    .textTheme
+                                                    .bodySmall!
+                                                    .color,
+                                              ),
                                             ),
-                                            style: TextStyle(
-                                              fontWeight: FontWeight.w600,
-                                              color: Theme.of(context)
-                                                  .textTheme
-                                                  .bodyText1!
-                                                  .color,
+                                            TextSpan(
+                                              text: '${details[e]}',
+                                              style: const TextStyle(
+                                                fontWeight: FontWeight.normal,
+                                              ),
                                             ),
-                                          ),
-                                          TextSpan(
-                                            text: details[e].toString(),
-                                            style: const TextStyle(
-                                              fontWeight: FontWeight.normal,
-                                            ),
-                                          ),
-                                        ],
+                                          ],
+                                        ),
+                                        showCursor: true,
+                                        cursorColor: Colors.black,
+                                        cursorRadius: const Radius.circular(5),
                                       ),
-                                      showCursor: true,
-                                      cursorColor: Colors.black,
-                                      cursorRadius: const Radius.circular(5),
                                     );
                                   }).toList(),
                                 ),
@@ -1139,6 +1144,7 @@ class NowPlayingStream extends StatelessWidget {
                         ),
                       Card(
                         elevation: 5,
+                        margin: EdgeInsets.zero,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(7.0),
                         ),
@@ -1239,6 +1245,7 @@ class ArtWorkWidget extends StatefulWidget {
 class _ArtWorkWidgetState extends State<ArtWorkWidget> {
   final ValueNotifier<bool> dragging = ValueNotifier<bool>(false);
   final ValueNotifier<bool> tapped = ValueNotifier<bool>(false);
+  final ValueNotifier<int> doubletapped = ValueNotifier<int>(0);
   final ValueNotifier<bool> done = ValueNotifier<bool>(false);
   Map lyrics = {'id': '', 'lyrics': ''};
 
@@ -1402,6 +1409,10 @@ class _ArtWorkWidgetState extends State<ArtWorkWidget> {
                 onDoubleTapDown: (details) {
                   if (details.globalPosition.dx <= widget.width * 2 / 5) {
                     widget.audioHandler.customAction('rewind');
+                    doubletapped.value = -1;
+                    Future.delayed(const Duration(milliseconds: 500), () async {
+                      doubletapped.value = 0;
+                    });
                   }
                   if (details.globalPosition.dx > widget.width * 2 / 5 &&
                       details.globalPosition.dx < widget.width * 3 / 5) {
@@ -1409,6 +1420,10 @@ class _ArtWorkWidgetState extends State<ArtWorkWidget> {
                   }
                   if (details.globalPosition.dx >= widget.width * 3 / 5) {
                     widget.audioHandler.customAction('fastForward');
+                    doubletapped.value = 1;
+                    Future.delayed(const Duration(milliseconds: 500), () async {
+                      doubletapped.value = 0;
+                    });
                   }
                 },
                 onDoubleTap: !enabled
@@ -1597,6 +1612,67 @@ class _ArtWorkWidgetState extends State<ArtWorkWidget> {
                       },
                     ),
                     ValueListenableBuilder(
+                      valueListenable: doubletapped,
+                      child: const Icon(
+                        Icons.forward_10_rounded,
+                        size: 60.0,
+                      ),
+                      builder: (
+                        BuildContext context,
+                        int value,
+                        Widget? child,
+                      ) {
+                        return Visibility(
+                          visible: value != 0,
+                          child: Card(
+                            color: Colors.transparent,
+                            elevation: 0.0,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(15.0),
+                            ),
+                            clipBehavior: Clip.antiAlias,
+                            child: SizedBox.expand(
+                              child: DecoratedBox(
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    colors: value == 1
+                                        ? [
+                                            Colors.transparent,
+                                            Colors.black.withOpacity(0.4),
+                                            Colors.black.withOpacity(0.7),
+                                          ]
+                                        : [
+                                            Colors.black.withOpacity(0.7),
+                                            Colors.black.withOpacity(0.4),
+                                            Colors.transparent,
+                                          ],
+                                  ),
+                                ),
+                                child: Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceEvenly,
+                                  children: [
+                                    Visibility(
+                                      visible: value == -1,
+                                      child: const Icon(
+                                        Icons.replay_10_rounded,
+                                        size: 60.0,
+                                      ),
+                                    ),
+                                    const SizedBox(),
+                                    Visibility(
+                                      visible: value == 1,
+                                      child: child!,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                    ValueListenableBuilder(
                       valueListenable: tapped,
                       child: GestureDetector(
                         onTap: () {
@@ -1670,44 +1746,52 @@ class _ArtWorkWidgetState extends State<ArtWorkWidget> {
                                                 crossAxisAlignment:
                                                     CrossAxisAlignment.start,
                                                 children: details.keys.map((e) {
-                                                  return SelectableText.rich(
-                                                    TextSpan(
-                                                      children: <TextSpan>[
-                                                        TextSpan(
-                                                          text:
-                                                              '${e[0].toUpperCase()}${e.substring(1)}: '
-                                                                  .replaceAll(
-                                                            '_',
-                                                            ' ',
-                                                          ),
-                                                          style: TextStyle(
-                                                            fontWeight:
-                                                                FontWeight.w600,
-                                                            color: Theme.of(
-                                                              context,
-                                                            )
-                                                                .textTheme
-                                                                .bodyText1!
-                                                                .color,
-                                                          ),
-                                                        ),
-                                                        TextSpan(
-                                                          text: details[e]
-                                                              .toString(),
-                                                          style:
-                                                              const TextStyle(
-                                                            fontWeight:
-                                                                FontWeight
-                                                                    .normal,
-                                                          ),
-                                                        ),
-                                                      ],
+                                                  return Padding(
+                                                    padding:
+                                                        const EdgeInsets.only(
+                                                      bottom: 10.0,
                                                     ),
-                                                    showCursor: true,
-                                                    cursorColor: Colors.black,
-                                                    cursorRadius:
-                                                        const Radius.circular(
-                                                      5,
+                                                    child: SelectableText.rich(
+                                                      TextSpan(
+                                                        children: <TextSpan>[
+                                                          TextSpan(
+                                                            text:
+                                                                '${e[0].toUpperCase()}${e.substring(1)}\n'
+                                                                    .replaceAll(
+                                                              '_',
+                                                              ' ',
+                                                            ),
+                                                            style: TextStyle(
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .normal,
+                                                              fontSize: 12,
+                                                              color: Theme.of(
+                                                                context,
+                                                              )
+                                                                  .textTheme
+                                                                  .bodySmall!
+                                                                  .color,
+                                                            ),
+                                                          ),
+                                                          TextSpan(
+                                                            text: details[e]
+                                                                .toString(),
+                                                            style:
+                                                                const TextStyle(
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .normal,
+                                                            ),
+                                                          ),
+                                                        ],
+                                                      ),
+                                                      showCursor: true,
+                                                      cursorColor: Colors.black,
+                                                      cursorRadius:
+                                                          const Radius.circular(
+                                                        5,
+                                                      ),
                                                     ),
                                                   );
                                                 }).toList(),
@@ -1815,10 +1899,12 @@ class NameNControls extends StatelessWidget {
             : height > 500
                 ? height * 0.2
                 : height * 0.3);
-    final double nowplayingBoxHeight =
-        height > 500 ? height * 0.4 : height * 0.15;
-    final bool useFullScreenGradient = Hive.box('settings')
-        .get('useFullScreenGradient', defaultValue: false) as bool;
+    final double nowplayingBoxHeight = min(70, height * 0.15);
+    // height > 500 ? height * 0.4 : height * 0.15;
+    // final double minNowplayingBoxHeight = height * 0.15;
+    final String gradientType = Hive.box('settings')
+        .get('gradientType', defaultValue: 'halfDark')
+        .toString();
     final List<String> artists = mediaItem.artist.toString().split(', ');
     return SizedBox(
       width: width,
@@ -1883,27 +1969,25 @@ class NameNControls extends StatelessWidget {
                         ),
                       ),
                     if (mediaItem.artist != null)
-                      ...artists
-                          .map(
-                            (String artist) => PopupMenuItem<String>(
-                              value: artist,
-                              child: SingleChildScrollView(
-                                scrollDirection: Axis.horizontal,
-                                child: Row(
-                                  children: [
-                                    const Icon(
-                                      Icons.person_rounded,
-                                    ),
-                                    const SizedBox(width: 10.0),
-                                    Text(
-                                      '${AppLocalizations.of(context)!.viewArtist} ($artist)',
-                                    ),
-                                  ],
+                      ...artists.map(
+                        (String artist) => PopupMenuItem<String>(
+                          value: artist,
+                          child: SingleChildScrollView(
+                            scrollDirection: Axis.horizontal,
+                            child: Row(
+                              children: [
+                                const Icon(
+                                  Icons.person_rounded,
                                 ),
-                              ),
+                                const SizedBox(width: 10.0),
+                                Text(
+                                  '${AppLocalizations.of(context)!.viewArtist} ($artist)',
+                                ),
+                              ],
                             ),
-                          )
-                          .toList()
+                          ),
+                        ),
+                      )
                   ],
                   child: Center(
                     child: Padding(
@@ -1939,7 +2023,9 @@ class NameNControls extends StatelessWidget {
 
                           /// Subtitle container
                           AnimatedText(
-                            text: (mediaItem.album ?? '').isEmpty
+                            text: ((mediaItem.album ?? '').isEmpty ||
+                                    ((mediaItem.album ?? '') ==
+                                        (mediaItem.artist ?? '')))
                                 ? '${(mediaItem.artist ?? "").isEmpty ? "Unknown" : mediaItem.artist}'
                                 : '${(mediaItem.artist ?? "").isEmpty ? "Unknown" : mediaItem.artist} • ${mediaItem.album}',
                             pauseAfterRound: const Duration(seconds: 3),
@@ -2125,7 +2211,7 @@ class NameNControls extends StatelessWidget {
             margin: EdgeInsets.zero,
             padding: EdgeInsets.zero,
             boxShadow: const [],
-            color: useFullScreenGradient
+            color: ['fullLight', 'fullMix'].contains(gradientType)
                 ? Theme.of(context).brightness == Brightness.dark
                     ? const Color.fromRGBO(0, 0, 0, 0.05)
                     : const Color.fromRGBO(255, 255, 255, 0.05)

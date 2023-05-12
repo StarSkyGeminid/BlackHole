@@ -27,7 +27,7 @@ import 'package:blackhole/CustomWidgets/snackbar.dart';
 import 'package:blackhole/CustomWidgets/textinput_dialog.dart';
 import 'package:blackhole/Helpers/backup_restore.dart';
 import 'package:blackhole/Helpers/downloads_checker.dart';
-import 'package:blackhole/Helpers/supabase.dart';
+import 'package:blackhole/Helpers/github.dart';
 import 'package:blackhole/Screens/Home/saavn.dart';
 import 'package:blackhole/Screens/Library/library.dart';
 import 'package:blackhole/Screens/LocalMusic/downed_songs.dart';
@@ -36,7 +36,6 @@ import 'package:blackhole/Screens/Settings/setting.dart';
 import 'package:blackhole/Screens/Top Charts/top.dart';
 import 'package:blackhole/Screens/YouTube/youtube_home.dart';
 import 'package:blackhole/Services/ext_storage_provider.dart';
-import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
@@ -62,9 +61,17 @@ class _HomePageState extends State<HomePage> {
       Hive.box('settings').get('checkUpdate', defaultValue: false) as bool;
   bool autoBackup =
       Hive.box('settings').get('autoBackup', defaultValue: false) as bool;
+  List sectionsToShow = Hive.box('settings').get(
+    'sectionsToShow',
+    defaultValue: ['Home', 'Top Charts', 'YouTube', 'Library'],
+  ) as List;
   DateTime? backButtonPressTime;
 
   void callback() {
+    sectionsToShow = Hive.box('settings').get(
+      'sectionsToShow',
+      defaultValue: ['Home', 'Top Charts', 'YouTube', 'Library'],
+    ) as List;
     setState(() {});
   }
 
@@ -95,11 +102,6 @@ class _HomePageState extends State<HomePage> {
     return update;
   }
 
-  void updateUserDetails(String key, dynamic value) {
-    final userId = Hive.box('settings').get('userId') as String?;
-    SupaBase().updateUserDetails(userId, key, value);
-  }
-
   Future<bool> handleWillPop(BuildContext context) async {
     final now = DateTime.now();
     final backButtonHasNotBeenPressedOrSnackBarHasBeenClosed =
@@ -120,46 +122,27 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget checkVersion() {
-    if (!checked && Theme.of(context).platform == TargetPlatform.android) {
+    if (!checked) {
       checked = true;
-      final SupaBase db = SupaBase();
-      final DateTime now = DateTime.now();
-      final List lastLogin = now
-          .toUtc()
-          .add(const Duration(hours: 5, minutes: 30))
-          .toString()
-          .split('.')
-        ..removeLast()
-        ..join('.');
-      updateUserDetails('lastLogin', '${lastLogin[0]} IST');
-      final String offset =
-          now.timeZoneOffset.toString().replaceAll('.000000', '');
-
-      updateUserDetails(
-        'timeZone',
-        'Zone: ${now.timeZoneName}, Offset: $offset',
-      );
-
       PackageInfo.fromPlatform().then((PackageInfo packageInfo) {
         appVersion = packageInfo.version;
-        updateUserDetails('version', packageInfo.version);
 
         if (checkUpdate) {
-          db.getUpdate().then((Map value) async {
+          GitHub.getLatestVersion().then((String version) async {
             if (compareVersion(
-              value['LatestVersion'] as String,
+              version,
               appVersion!,
             )) {
-              List? abis =
-                  await Hive.box('settings').get('supportedAbis') as List?;
+              // List? abis =
+              //     await Hive.box('settings').get('supportedAbis') as List?;
 
-              if (abis == null) {
-                final DeviceInfoPlugin deviceInfo = DeviceInfoPlugin();
-                final AndroidDeviceInfo androidDeviceInfo =
-                    await deviceInfo.androidInfo;
-                abis = androidDeviceInfo.supportedAbis;
-                await Hive.box('settings').put('supportedAbis', abis);
-              }
+              // if (abis == null) {
+              //   final DeviceInfoPlugin deviceInfo = DeviceInfoPlugin();
+              //   final AndroidDeviceInfo androidDeviceInfo =
+              //       await deviceInfo.androidInfo;
+              //   abis = androidDeviceInfo.supportedAbis;
+              //   await Hive.box('settings').put('supportedAbis', abis);
+              // }
 
               ShowSnackBar().showSnackBar(
                 context,
@@ -170,24 +153,10 @@ class _HomePageState extends State<HomePage> {
                   label: AppLocalizations.of(context)!.update,
                   onPressed: () {
                     Navigator.pop(context);
-                    if (abis!.contains('arm64-v8a')) {
-                      launchUrl(
-                        Uri.parse(value['arm64-v8a'] as String),
-                        mode: LaunchMode.externalApplication,
-                      );
-                    } else {
-                      if (abis.contains('armeabi-v7a')) {
-                        launchUrl(
-                          Uri.parse(value['armeabi-v7a'] as String),
-                          mode: LaunchMode.externalApplication,
-                        );
-                      } else {
-                        launchUrl(
-                          Uri.parse(value['universal'] as String),
-                          mode: LaunchMode.externalApplication,
-                        );
-                      }
-                    }
+                    launchUrl(
+                      Uri.parse('https://sangwan5688.github.io/download/'),
+                      mode: LaunchMode.externalApplication,
+                    );
                   },
                 ),
               );
@@ -615,10 +584,6 @@ class _HomePageState extends State<HomePage> {
                                                       );
                                                       name = value.trim();
                                                       Navigator.pop(context);
-                                                      updateUserDetails(
-                                                        'name',
-                                                        value.trim(),
-                                                      );
                                                     },
                                                   );
                                                   setState(() {});
@@ -752,7 +717,7 @@ class _HomePageState extends State<HomePage> {
                                                                   .width -
                                                               75,
                                                         ),
-                                                  height: 52.0,
+                                                  height: 55.0,
                                                   duration: const Duration(
                                                     milliseconds: 150,
                                                   ),
@@ -800,7 +765,7 @@ class _HomePageState extends State<HomePage> {
                                                           color:
                                                               Theme.of(context)
                                                                   .textTheme
-                                                                  .caption!
+                                                                  .bodySmall!
                                                                   .color,
                                                           fontWeight:
                                                               FontWeight.normal,
@@ -855,11 +820,14 @@ class _HomePageState extends State<HomePage> {
                                   ),
                               ],
                             ),
-                            TopCharts(
-                              pageController: _pageController,
-                            ),
+                            if (sectionsToShow.contains('Top Charts'))
+                              TopCharts(
+                                pageController: _pageController,
+                              ),
                             const YouTube(),
                             const LibraryPage(),
+                            if (sectionsToShow.contains('Settings'))
+                              SettingPage(callback: callback),
                           ],
                         ),
                       ),
@@ -893,14 +861,15 @@ class _HomePageState extends State<HomePage> {
                             selectedColor:
                                 Theme.of(context).colorScheme.secondary,
                           ),
-                          SalomonBottomBarItem(
-                            icon: const Icon(Icons.trending_up_rounded),
-                            title: Text(
-                              AppLocalizations.of(context)!.topCharts,
+                          if (sectionsToShow.contains('Top Charts'))
+                            SalomonBottomBarItem(
+                              icon: const Icon(Icons.trending_up_rounded),
+                              title: Text(
+                                AppLocalizations.of(context)!.topCharts,
+                              ),
+                              selectedColor:
+                                  Theme.of(context).colorScheme.secondary,
                             ),
-                            selectedColor:
-                                Theme.of(context).colorScheme.secondary,
-                          ),
                           SalomonBottomBarItem(
                             icon: const Icon(MdiIcons.youtube),
                             title: Text(AppLocalizations.of(context)!.youTube),
@@ -913,6 +882,14 @@ class _HomePageState extends State<HomePage> {
                             selectedColor:
                                 Theme.of(context).colorScheme.secondary,
                           ),
+                          if (sectionsToShow.contains('Settings'))
+                            SalomonBottomBarItem(
+                              icon: const Icon(Icons.settings_rounded),
+                              title:
+                                  Text(AppLocalizations.of(context)!.settings),
+                              selectedColor:
+                                  Theme.of(context).colorScheme.secondary,
+                            ),
                         ],
                       ),
                     );

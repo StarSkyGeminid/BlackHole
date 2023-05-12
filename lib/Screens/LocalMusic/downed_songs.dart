@@ -17,6 +17,8 @@
  * Copyright (c) 2021-2022, Ankit Sangwan
  */
 
+import 'dart:io';
+
 import 'package:blackhole/CustomWidgets/add_playlist.dart';
 import 'package:blackhole/CustomWidgets/custom_physics.dart';
 import 'package:blackhole/CustomWidgets/data_search.dart';
@@ -59,10 +61,12 @@ class _DownloadedSongsState extends State<DownloadedSongs>
   final Map<String, List<SongModel>> _albums = {};
   final Map<String, List<SongModel>> _artists = {};
   final Map<String, List<SongModel>> _genres = {};
+  final Map<String, List<SongModel>> _folders = {};
 
   final List<String> _sortedAlbumKeysList = [];
   final List<String> _sortedArtistKeysList = [];
   final List<String> _sortedGenreKeysList = [];
+  final List<String> _sortedFolderKeysList = [];
   // final List<String> _videos = [];
 
   bool added = false;
@@ -100,7 +104,7 @@ class _DownloadedSongsState extends State<DownloadedSongs>
   @override
   void initState() {
     _tcontroller =
-        TabController(length: widget.showPlaylists ? 5 : 4, vsync: this);
+        TabController(length: widget.showPlaylists ? 6 : 5, vsync: this);
     getData();
     super.initState();
   }
@@ -119,57 +123,85 @@ class _DownloadedSongsState extends State<DownloadedSongs>
   }
 
   Future<void> getData() async {
-    await offlineAudioQuery.requestPermission();
-    tempPath ??= (await getTemporaryDirectory()).path;
-    playlistDetails = await offlineAudioQuery.getPlaylists();
-    if (widget.cachedSongs == null) {
-      _songs = (await offlineAudioQuery.getSongs(
-        sortType: songSortTypes[sortValue],
-        orderType: songOrderTypes[orderValue],
-      ))
-          .where(
-            (i) =>
-                (i.duration ?? 60000) > 1000 * minDuration &&
-                (i.isMusic! || i.isPodcast! || i.isAudioBook!) &&
-                (includeOrExclude
-                    ? checkIncludedOrExcluded(i)
-                    : !checkIncludedOrExcluded(i)),
-          )
-          .toList();
-    } else {
-      _songs = widget.cachedSongs!;
-    }
-    added = true;
-    setState(() {});
-    for (int i = 0; i < _songs.length; i++) {
-      try {
-        if (_albums.containsKey(_songs[i].album ?? 'Unknown')) {
-          _albums[_songs[i].album ?? 'Unknown']!.add(_songs[i]);
-        } else {
-          _albums[_songs[i].album ?? 'Unknown'] = [_songs[i]];
-          _sortedAlbumKeysList.add(_songs[i].album ?? 'Unknown');
-        }
-
-        if (_artists.containsKey(_songs[i].artist ?? 'Unknown')) {
-          _artists[_songs[i].artist ?? 'Unknown']!.add(_songs[i]);
-        } else {
-          _artists[_songs[i].artist ?? 'Unknown'] = [_songs[i]];
-          _sortedArtistKeysList.add(_songs[i].artist ?? 'Unknown');
-        }
-
-        if (_genres.containsKey(_songs[i].genre ?? 'Unknown')) {
-          _genres[_songs[i].genre ?? 'Unknown']!.add(_songs[i]);
-        } else {
-          _genres[_songs[i].genre ?? 'Unknown'] = [_songs[i]];
-          _sortedGenreKeysList.add(_songs[i].genre ?? 'Unknown');
-        }
-      } catch (e) {
-        Logger.root.severe('Error in sorting songs: $e');
+    try {
+      Logger.root.info('Requesting permission to access local songs');
+      await offlineAudioQuery.requestPermission();
+      tempPath ??= (await getTemporaryDirectory()).path;
+      if (Platform.isAndroid) {
+        Logger.root.info('Getting local playlists');
+        playlistDetails = await offlineAudioQuery.getPlaylists();
       }
+      if (widget.cachedSongs == null) {
+        Logger.root.info('Cache empty, calling audioQuery');
+        final receivedSongs = await offlineAudioQuery.getSongs(
+          sortType: songSortTypes[sortValue],
+          orderType: songOrderTypes[orderValue],
+        );
+        Logger.root.info('Received ${receivedSongs.length} songs, filtering');
+        _songs = receivedSongs
+            .where(
+              (i) =>
+                  (i.duration ?? 60000) > 1000 * minDuration &&
+                  (i.isMusic! || i.isPodcast! || i.isAudioBook!) &&
+                  (includeOrExclude
+                      ? checkIncludedOrExcluded(i)
+                      : !checkIncludedOrExcluded(i)),
+            )
+            .toList();
+      } else {
+        Logger.root.info('Setting songs to cached songs');
+        _songs = widget.cachedSongs!;
+      }
+      added = true;
+      Logger.root.info('got ${_songs.length} songs');
+      setState(() {});
+      Logger.root.info('setting albums and artists');
+      for (int i = 0; i < _songs.length; i++) {
+        try {
+          if (_albums.containsKey(_songs[i].album ?? 'Unknown')) {
+            _albums[_songs[i].album ?? 'Unknown']!.add(_songs[i]);
+          } else {
+            _albums[_songs[i].album ?? 'Unknown'] = [_songs[i]];
+            _sortedAlbumKeysList.add(_songs[i].album ?? 'Unknown');
+          }
+
+          if (_artists.containsKey(_songs[i].artist ?? 'Unknown')) {
+            _artists[_songs[i].artist ?? 'Unknown']!.add(_songs[i]);
+          } else {
+            _artists[_songs[i].artist ?? 'Unknown'] = [_songs[i]];
+            _sortedArtistKeysList.add(_songs[i].artist ?? 'Unknown');
+          }
+
+          if (_genres.containsKey(_songs[i].genre ?? 'Unknown')) {
+            _genres[_songs[i].genre ?? 'Unknown']!.add(_songs[i]);
+          } else {
+            _genres[_songs[i].genre ?? 'Unknown'] = [_songs[i]];
+            _sortedGenreKeysList.add(_songs[i].genre ?? 'Unknown');
+          }
+
+          final tempPath = _songs[i].data.split('/');
+          tempPath.removeLast();
+          final dirPath = tempPath.join('/');
+
+          if (_folders.containsKey(dirPath)) {
+            _folders[dirPath]!.add(_songs[i]);
+          } else {
+            _folders[dirPath] = [_songs[i]];
+            _sortedFolderKeysList.add(dirPath);
+          }
+        } catch (e) {
+          Logger.root.severe('Error in sorting songs', e);
+        }
+      }
+      Logger.root.info('albums, artists, genre & folders set');
+    } catch (e) {
+      Logger.root.severe('Error in getData', e);
+      added = true;
     }
   }
 
   Future<void> sortSongs(int sortVal, int order) async {
+    Logger.root.info('Sorting songs');
     switch (sortVal) {
       case 0:
         _songs.sort(
@@ -211,6 +243,7 @@ class _DownloadedSongsState extends State<DownloadedSongs>
     if (order == 1) {
       _songs = _songs.reversed.toList();
     }
+    Logger.root.info('Done Sorting songs');
   }
 
   @override
@@ -220,7 +253,7 @@ class _DownloadedSongsState extends State<DownloadedSongs>
         children: [
           Expanded(
             child: DefaultTabController(
-              length: widget.showPlaylists ? 5 : 4,
+              length: widget.showPlaylists ? 6 : 5,
               child: Scaffold(
                 backgroundColor: Colors.transparent,
                 appBar: AppBar(
@@ -243,6 +276,9 @@ class _DownloadedSongsState extends State<DownloadedSongs>
                       ),
                       Tab(
                         text: AppLocalizations.of(context)!.genres,
+                      ),
+                      Tab(
+                        text: AppLocalizations.of(context)!.folders,
                       ),
                       if (widget.showPlaylists)
                         Tab(
@@ -395,6 +431,11 @@ class _DownloadedSongsState extends State<DownloadedSongs>
                           AlbumsTab(
                             albums: _genres,
                             albumsList: _sortedGenreKeysList,
+                            tempPath: tempPath!,
+                          ),
+                          AlbumsTab(
+                            albums: _folders,
+                            albumsList: _sortedFolderKeysList,
                             tempPath: tempPath!,
                           ),
                           if (widget.showPlaylists)

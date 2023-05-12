@@ -30,7 +30,6 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:hive_flutter/hive_flutter.dart';
-// import 'package:html_unescape/html_unescape_small.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 List localSongs = [];
@@ -83,7 +82,7 @@ class _TopChartsState extends State<TopCharts>
                 child: Text(
                   AppLocalizations.of(context)!.local,
                   style: TextStyle(
-                    color: Theme.of(context).textTheme.bodyText1!.color,
+                    color: Theme.of(context).textTheme.bodyLarge!.color,
                   ),
                 ),
               ),
@@ -91,7 +90,7 @@ class _TopChartsState extends State<TopCharts>
                 child: Text(
                   AppLocalizations.of(context)!.global,
                   style: TextStyle(
-                    color: Theme.of(context).textTheme.bodyText1!.color,
+                    color: Theme.of(context).textTheme.bodyLarge!.color,
                   ),
                 ),
               ),
@@ -101,7 +100,7 @@ class _TopChartsState extends State<TopCharts>
             AppLocalizations.of(context)!.spotifyCharts,
             style: TextStyle(
               fontSize: 18,
-              color: Theme.of(context).textTheme.bodyText1!.color,
+              color: Theme.of(context).textTheme.bodyLarge!.color,
             ),
           ),
           centerTitle: true,
